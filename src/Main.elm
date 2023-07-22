@@ -234,12 +234,11 @@ viewModel model = case model of
                     ]
                     [ Html.text (if m.showFullAbstract then "Trim abstracts" else "Expand abstracts") ]
                 , Table.table
-                    { options = [ Table.striped, Table.hover ]
+                    { options = [ Table.striped, Table.hover, Table.responsive ]
                     , thead =  Table.simpleThead
-                        [ Table.th [] [ Html.text "Day" ]
-                        , Table.th [] [ Html.text "Time" ]
-                        , Table.th [] [ Html.text "Speaker" ]
+                        [ Table.th [] [ Html.text "When?" ]
                         , Table.th [] [ Html.text "Room" ]
+                        , Table.th [] [ Html.text "Speaker" ]
                         , Table.th [] [ Html.text "Title" ]
                         , Table.th [] [ Html.text "Session" ]
                         , Table.th [] [ Html.text "Abstract" ]
@@ -248,10 +247,9 @@ viewModel model = case model of
                         sel
                             |> List.map (\t ->
                                 Table.tr []
-                                    [ Table.td [] [ Html.text t.day ]
-                                    , Table.td [] [ Html.text t.time ]
-                                    , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
+                                    [ Table.td [] [ Html.text <| t.day ++ " " ++ t.time ]
                                     , Table.td [] [ Html.text t.room ]
+                                    , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
                                     , Table.td [] [ showHits m.title t.title ]
                                     , Table.td [] [ Html.text t.session ]
                                     , Table.td [] [ showHits m.abstract <| trimAbstract m.showFullAbstract (Maybe.withDefault "" t.abstract) ]
