@@ -40,6 +40,7 @@ decodeTalk = J.map7 Talk
 type alias FilterSet =
     { days : S.Set String
     , sessions : S.Set String
+    , showSessionsFilter : Bool
     , speaker : String
     , title : String
     , abstract : String
@@ -53,6 +54,7 @@ initFilters talks =
     , sessions = talks
                 |> List.map .session
                 |> S.fromList
+    , showSessionsFilter = False
     , speaker = ""
     , title = ""
     , abstract = ""
@@ -81,6 +83,7 @@ type Msg =
     GotData (Result Http.Error (List Talk))
     | ToggleDayFilter String
     | ToggleSessionFilter String
+    | ToggleShowSessionsFilter
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
     | UpdateAbstractFilter String
@@ -97,38 +100,30 @@ updateM msg model =
             Http.NetworkError -> "NetworkError"
             Http.BadStatus c -> "BadStatus: " ++ String.fromInt c
             Http.BadBody e -> "BadBody: " ++ e
-        ToggleDayFilter d -> case model of
+        _ -> case model of
             Loading -> model
             LoadFailed err -> model
-            ShowTalks m ->
-                let
-                    newSet =
-                        if S.member d m.days
-                        then S.remove d m.days
-                        else S.insert d m.days
-                in ShowTalks { m | days = newSet }
-        ToggleSessionFilter d -> case model of
-            Loading -> model
-            LoadFailed err -> model
-            ShowTalks m ->
-                let
-                    newSet =
-                        if S.member d m.sessions
-                        then S.remove d m.sessions
-                        else S.insert d m.sessions
-                in ShowTalks { m | sessions = newSet }
-        UpdateTitleFilter t -> case model of
-            Loading -> model
-            LoadFailed err -> model
-            ShowTalks m -> ShowTalks { m | title = t }
-        UpdateSpeakerFilter t -> case model of
-            Loading -> model
-            LoadFailed err -> model
-            ShowTalks m -> ShowTalks { m | speaker = t }
-        UpdateAbstractFilter t -> case model of
-            Loading -> model
-            LoadFailed err -> model
-            ShowTalks m -> ShowTalks { m | abstract = t }
+            ShowTalks m -> case msg of
+                GotData _ -> model -- impossible, but needed to satisfy the compiler
+                ToggleDayFilter d ->
+                    let
+                        newSet =
+                            if S.member d m.days
+                            then S.remove d m.days
+                            else S.insert d m.days
+                    in ShowTalks { m | days = newSet }
+                ToggleShowSessionsFilter ->
+                    ShowTalks { m | showSessionsFilter = not m.showSessionsFilter }
+                ToggleSessionFilter d ->
+                        let
+                            newSet =
+                                if S.member d m.sessions
+                                then S.remove d m.sessions
+                                else S.insert d m.sessions
+                        in ShowTalks { m | sessions = newSet }
+                UpdateTitleFilter t -> ShowTalks { m | title = t }
+                UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
+                UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
 
 view m =
     Html.div []
@@ -144,9 +139,11 @@ viewModel model = case model of
         let
             filterDays = List.filter (\t -> S.member t.day m.days)
             filterSpeakers = List.filter (\t -> String.contains (String.toLower m.speaker) (String.toLower (Maybe.withDefault "" t.speaker)))
+            filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
             filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
             sel = m.talks
                     |> filterDays
+                    |> filterTitles
                     |> filterSpeakers
                     |> filterAbstracts
             allDays = List.map (\t -> t.day) m.talks
@@ -164,7 +161,6 @@ viewModel model = case model of
                     [ Html.h1 [] [ Html.text "ISMB/ECCB 2023" ]
                     , Html.h2 [] [ Html.text "All sessions" ]
                     , Html.p [] [ Html.text "This is a list of all sessions at ISMB/ECCB 2023, based on a table from Lars Juhl Jensen" ]
-                    , Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " talks") ]
                     ]
                 ]
             , Grid.simpleRow
@@ -181,17 +177,26 @@ viewModel model = case model of
                                 ]]
                             ) allDays)
                     , Grid.col [ ]
-                        ((Html.h4 [] [Html.text "Filter by session" ])::
-                        List.map (\s ->
-                            Grid.simpleRow
-                            [ Grid.col [ ]
-                                [ Button.button
-                                        [ (if S.member s m.sessions then Button.primary else Button.outlineSecondary)
-                                        , Button.onClick (ToggleSessionFilter s)
-                                        ]
-                                        [ Html.text s ]
-                                ]]
-                            ) allSessions)
+                        (let
+                            filter =
+                                if m.showSessionsFilter
+                                then allSessions
+                                        |> List.map (\s ->
+                                            Grid.simpleRow [ Grid.col [ ]
+                                                [ Button.button
+                                                        [ (if S.member s m.sessions then Button.primary else Button.outlineSecondary)
+                                                        , Button.onClick (ToggleSessionFilter s)
+                                                        ]
+                                                        [ Html.text s ]
+                                                ]])
+                                else []
+                        in [Html.h4 [] [Html.text "Filter by session" ]
+                           ,Button.button
+                                [ (if m.showSessionsFilter then Button.primary else Button.outlineSecondary)
+                                , Button.onClick ToggleShowSessionsFilter
+                                ]
+                                [ Html.text (if m.showSessionsFilter then "Hide sessions" else "Show sessions") ]
+                           ] ++  filter)
                     , Grid.col [ ]
                         [Html.h4 [] [Html.text "Filter by speaker" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.speaker, HE.onInput UpdateSpeakerFilter ] []
@@ -208,7 +213,8 @@ viewModel model = case model of
 
             , Grid.simpleRow
                     [ Grid.col [ ]
-                [Table.table
+                [ Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " talks") ]
+                , Table.table
                     { options = [ Table.striped, Table.hover ]
                     , thead =  Table.simpleThead
                         [ Table.th [] [ Html.text "Day" ]
@@ -225,15 +231,38 @@ viewModel model = case model of
                                 Table.tr []
                                     [ Table.td [] [ Html.text t.day ]
                                     , Table.td [] [ Html.text t.time ]
-                                    , Table.td [] [ Html.text (Maybe.withDefault "" t.speaker) ]
+                                    , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
                                     , Table.td [] [ Html.text t.room ]
-                                    , Table.td [] [ Html.text t.title ]
+                                    , Table.td [] [ showHits m.title t.title ]
                                     , Table.td [] [ Html.text t.session ]
-                                    , Table.td [] [ Html.text (Maybe.withDefault "" t.abstract) ]
+                                    , Table.td [] [ showHits m.abstract (Maybe.withDefault "" t.abstract) ]
                                     ])
                             |> Table.tbody []
                     }
                 ]
             ]
         ]
+
+showHits filter abstract =
+    if filter == ""
+    then Html.text abstract
+    else
+    let
+        matches : List Int
+        matches = String.indexes (String.toLower filter) (String.toLower abstract)
+        showMatch : Int -> Int -> Html msg
+        showMatch start ix =
+            let
+                before = String.slice start ix abstract
+            in
+                Html.span []
+                    [Html.text before
+                    ,Html.strong [] [Html.text <| String.slice ix (ix + String.length filter) abstract]]
+        showMatches : Int -> List Int -> List (Html msg)
+        showMatches start ixs = case ixs of
+            [] -> [Html.text <| (String.slice start (String.length abstract) abstract)]
+            ix::rest -> showMatch start ix :: showMatches (ix + String.length filter) rest
+    in
+    Html.p []
+        (showMatches 0 matches)
 
