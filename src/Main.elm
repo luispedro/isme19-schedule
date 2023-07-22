@@ -44,6 +44,7 @@ type alias FilterSet =
     , speaker : String
     , title : String
     , abstract : String
+    , showFullAbstract : Bool
     , talks : List Talk
     }
 
@@ -58,6 +59,7 @@ initFilters talks =
     , speaker = ""
     , title = ""
     , abstract = ""
+    , showFullAbstract = False
     , talks = talks
     }
 
@@ -84,6 +86,7 @@ type Msg =
     | ToggleDayFilter String
     | ToggleSessionFilter String
     | ToggleShowSessionsFilter
+    | ToggleShowFullAbstract
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
     | UpdateAbstractFilter String
@@ -121,6 +124,7 @@ updateM msg model =
                                 then S.remove d m.sessions
                                 else S.insert d m.sessions
                         in ShowTalks { m | sessions = newSet }
+                ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
                 UpdateTitleFilter t -> ShowTalks { m | title = t }
                 UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
                 UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
@@ -164,8 +168,14 @@ viewModel model = case model of
             [ Grid.simpleRow
                 [ Grid.col []
                     [ Html.h1 [] [ Html.text "ISMB/ECCB 2023" ]
-                    , Html.h2 [] [ Html.text "All sessions" ]
-                    , Html.p [] [ Html.text "This is a list of all sessions at ISMB/ECCB 2023, based on a table from Lars Juhl Jensen" ]
+                    , Html.p [] [ Html.text "This is a list of all sessions at ISMB/ECCB 2023."]
+                    , Html.p [] [ Html.text "Created by "
+                                , Html.a [ HtmlAttr.href "https://luispedro.org/"]
+                                    [ Html.text "Luis Pedro Coelho" ]
+                                , Html.text " based on a table from "
+                                , Html.a [ HtmlAttr.href "https://twitter.com/larsjuhljensen"]
+                                    [ Html.text "Lars Juhl Jensen" ]
+                                ]
                     ]
                 ]
             , Grid.simpleRow
@@ -215,6 +225,11 @@ viewModel model = case model of
             , Grid.simpleRow
                     [ Grid.col [ ]
                 [ Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " talks") ]
+                , Button.button
+                    [ (if m.showFullAbstract then Button.primary else Button.outlineSecondary)
+                    , Button.onClick ToggleShowFullAbstract
+                    ]
+                    [ Html.text (if m.showFullAbstract then "Trim abstracts" else "Expand abstracts") ]
                 , Table.table
                     { options = [ Table.striped, Table.hover ]
                     , thead =  Table.simpleThead
@@ -236,7 +251,7 @@ viewModel model = case model of
                                     , Table.td [] [ Html.text t.room ]
                                     , Table.td [] [ showHits m.title t.title ]
                                     , Table.td [] [ Html.text t.session ]
-                                    , Table.td [] [ showHits m.abstract (Maybe.withDefault "" t.abstract) ]
+                                    , Table.td [] [ showHits m.abstract <| trimAbstract m.showFullAbstract (Maybe.withDefault "" t.abstract) ]
                                     ])
                             |> Table.tbody []
                     }
@@ -244,6 +259,19 @@ viewModel model = case model of
             ]
         ]
 
+
+trimAbstract : Bool -> String -> String
+trimAbstract showFull abstract =
+    if showFull
+    then abstract
+    else
+        let
+            maxLen = 150
+            trimmed = String.left maxLen abstract
+        in
+        if String.length abstract <= maxLen
+        then abstract
+        else trimmed ++ "..."
 showHits filter abstract =
     if filter == ""
     then Html.text abstract
