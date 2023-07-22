@@ -52,9 +52,7 @@ initFilters talks =
     { days = talks
                 |> List.map .day
                 |> S.fromList
-    , sessions = talks
-                |> List.map .session
-                |> S.fromList
+    , sessions = S.empty
     , showSessionsFilter = False
     , speaker = ""
     , title = ""
@@ -150,11 +148,13 @@ viewModel model = case model of
             filterSpeakers = List.filter (\t -> String.contains (String.toLower m.speaker) (String.toLower (Maybe.withDefault "" t.speaker)))
             filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
             filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
+            filterSessions = List.filter (\t -> S.isEmpty m.sessions || S.member t.session m.sessions)
             sel = m.talks
                     |> filterDays
                     |> filterTitles
                     |> filterSpeakers
                     |> filterAbstracts
+                    |> filterSessions
             allDays = List.map (\t -> t.day) m.talks
                         |> S.fromList
                         |> S.toList
