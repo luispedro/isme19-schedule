@@ -8,7 +8,7 @@ import Html
 import Http
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
-import Html.Events exposing (onClick)
+import Html.Events as HE
 
 import Bootstrap.CDN as CDN
 import Bootstrap.Button as Button
@@ -39,18 +39,30 @@ decodeTalk = J.map7 Talk
 
 type alias FilterSet =
     { days : S.Set String
+    , sessions : S.Set String
+    , speaker : String
+    , title : String
+    , abstract : String
+    , talks : List Talk
     }
 
 initFilters talks =
     { days = talks
-                |> List.map (\t -> t.day)
+                |> List.map .day
                 |> S.fromList
+    , sessions = talks
+                |> List.map .session
+                |> S.fromList
+    , speaker = ""
+    , title = ""
+    , abstract = ""
+    , talks = talks
     }
 
 type Model =
     Loading
     | LoadFailed String
-    | ShowTalks { filters : FilterSet, talks : List Talk}
+    | ShowTalks FilterSet
 
 main = let
         getTalks : Cmd Msg
@@ -68,13 +80,17 @@ main = let
 type Msg =
     GotData (Result Http.Error (List Talk))
     | ToggleDayFilter String
+    | ToggleSessionFilter String
+    | UpdateTitleFilter String
+    | UpdateSpeakerFilter String
+    | UpdateAbstractFilter String
 
 update msg model = (updateM msg model, Cmd.none)
 
 updateM msg model =
     case msg of
         GotData r -> case r of
-          Ok d -> ShowTalks { filters = initFilters d, talks = d }
+          Ok d -> ShowTalks <| initFilters d
           Err err -> LoadFailed <| case err of
             Http.BadUrl e -> "BadURL: " ++ e
             Http.Timeout -> "TimeOut"
@@ -87,10 +103,32 @@ updateM msg model =
             ShowTalks m ->
                 let
                     newSet =
-                        if S.member d m.filters.days
-                        then S.remove d m.filters.days
-                        else S.insert d m.filters.days
-                in ShowTalks { filters = { days = newSet }, talks = m.talks }
+                        if S.member d m.days
+                        then S.remove d m.days
+                        else S.insert d m.days
+                in ShowTalks { m | days = newSet }
+        ToggleSessionFilter d -> case model of
+            Loading -> model
+            LoadFailed err -> model
+            ShowTalks m ->
+                let
+                    newSet =
+                        if S.member d m.sessions
+                        then S.remove d m.sessions
+                        else S.insert d m.sessions
+                in ShowTalks { m | sessions = newSet }
+        UpdateTitleFilter t -> case model of
+            Loading -> model
+            LoadFailed err -> model
+            ShowTalks m -> ShowTalks { m | title = t }
+        UpdateSpeakerFilter t -> case model of
+            Loading -> model
+            LoadFailed err -> model
+            ShowTalks m -> ShowTalks { m | speaker = t }
+        UpdateAbstractFilter t -> case model of
+            Loading -> model
+            LoadFailed err -> model
+            ShowTalks m -> ShowTalks { m | abstract = t }
 
 view m =
     Html.div []
@@ -104,8 +142,19 @@ viewModel model = case model of
     LoadFailed err -> Html.text ("Load error: " ++ err)
     ShowTalks m ->
         let
-            sel = List.filter (\t -> S.member t.day m.filters.days) m.talks
+            filterDays = List.filter (\t -> S.member t.day m.days)
+            filterSpeakers = List.filter (\t -> String.contains (String.toLower m.speaker) (String.toLower (Maybe.withDefault "" t.speaker)))
+            filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
+            sel = m.talks
+                    |> filterDays
+                    |> filterSpeakers
+                    |> filterAbstracts
             allDays = List.map (\t -> t.day) m.talks
+                        |> S.fromList
+                        |> S.toList
+                        |> List.sort
+            allSessions = m.talks
+                        |> List.map .session
                         |> S.fromList
                         |> S.toList
                         |> List.sort
@@ -125,12 +174,36 @@ viewModel model = case model of
                             Grid.simpleRow
                             [ Grid.col [ ]
                                 [ Button.button
-                                        [ (if S.member d m.filters.days then Button.primary else Button.outlineSecondary)
+                                        [ (if S.member d m.days then Button.primary else Button.outlineSecondary)
                                         , Button.onClick (ToggleDayFilter d)
                                         ]
                                         [ Html.text d ]
                                 ]]
                             ) allDays)
+                    , Grid.col [ ]
+                        ((Html.h4 [] [Html.text "Filter by session" ])::
+                        List.map (\s ->
+                            Grid.simpleRow
+                            [ Grid.col [ ]
+                                [ Button.button
+                                        [ (if S.member s m.sessions then Button.primary else Button.outlineSecondary)
+                                        , Button.onClick (ToggleSessionFilter s)
+                                        ]
+                                        [ Html.text s ]
+                                ]]
+                            ) allSessions)
+                    , Grid.col [ ]
+                        [Html.h4 [] [Html.text "Filter by speaker" ]
+                        ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.speaker, HE.onInput UpdateSpeakerFilter ] []
+                        ]
+                    , Grid.col [ ]
+                        [Html.h4 [] [Html.text "Filter by title" ]
+                        ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.title, HE.onInput UpdateTitleFilter ] []
+                        ]
+                    , Grid.col [ ]
+                        [Html.h4 [] [Html.text "Filter by abstract" ]
+                        ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.abstract, HE.onInput UpdateAbstractFilter ] []
+                        ]
                     ]
 
             , Grid.simpleRow
