@@ -175,6 +175,9 @@ viewModel model = case model of
                                 , Html.text " based on a table from "
                                 , Html.a [ HtmlAttr.href "https://twitter.com/larsjuhljensen"]
                                     [ Html.text "Lars Juhl Jensen" ]
+                                , Html.text ". Code is available on "
+                                , Html.a [ HtmlAttr.href "https://github.com/luispedro/ismb-schedule" ]
+                                    [ Html.text "GitHub" ]
                                 ]
                     ]
                 ]
