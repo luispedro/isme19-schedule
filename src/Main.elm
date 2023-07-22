@@ -129,6 +129,11 @@ view m =
     Html.div []
         [ CDN.stylesheet
         , CDN.fontAwesome
+        , Html.node "link"
+            [ HtmlAttr.rel "stylesheet"
+            , HtmlAttr.href "style.css"
+            ]
+            []
         , viewModel m ]
 
 
@@ -167,14 +172,11 @@ viewModel model = case model of
                     [ Grid.col [ ]
                         ((Html.h4 [] [Html.text "Filter by day" ])::
                         List.map (\d ->
-                            Grid.simpleRow
-                            [ Grid.col [ ]
-                                [ Button.button
+                                Button.button
                                         [ (if S.member d m.days then Button.primary else Button.outlineSecondary)
                                         , Button.onClick (ToggleDayFilter d)
                                         ]
                                         [ Html.text d ]
-                                ]]
                             ) allDays)
                     , Grid.col [ ]
                         (let
@@ -182,13 +184,12 @@ viewModel model = case model of
                                 if m.showSessionsFilter
                                 then allSessions
                                         |> List.map (\s ->
-                                            Grid.simpleRow [ Grid.col [ ]
-                                                [ Button.button
+                                                Button.button
                                                         [ (if S.member s m.sessions then Button.primary else Button.outlineSecondary)
                                                         , Button.onClick (ToggleSessionFilter s)
                                                         ]
                                                         [ Html.text s ]
-                                                ]])
+                                                )
                                 else []
                         in [Html.h4 [] [Html.text "Filter by session" ]
                            ,Button.button
