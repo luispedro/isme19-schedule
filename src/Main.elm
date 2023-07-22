@@ -12,6 +12,7 @@ import Html.Events as HE
 
 import Bootstrap.CDN as CDN
 import Bootstrap.Button as Button
+import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
@@ -39,8 +40,8 @@ decodeTalk = J.map7 Talk
 
 type alias FilterSet =
     { days : S.Set String
-    , sessions : S.Set String
-    , showSessionsFilter : Bool
+    , session : String
+    , sessionFilterState : Dropdown.State
     , speaker : String
     , title : String
     , abstract : String
@@ -52,8 +53,8 @@ initFilters talks =
     { days = talks
                 |> List.map .day
                 |> S.fromList
-    , sessions = S.empty
-    , showSessionsFilter = False
+    , session = ""
+    , sessionFilterState = Dropdown.initialState
     , speaker = ""
     , title = ""
     , abstract = ""
@@ -75,15 +76,18 @@ main = let
     in Browser.element
         { init = \() -> (Loading, getTalks)
         , update = update
-        , subscriptions = \_ ->  Sub.none
+        , subscriptions = \model -> case model of
+            Loading -> Sub.none
+            LoadFailed _ -> Sub.none
+            ShowTalks m -> Dropdown.subscriptions m.sessionFilterState SessionFilterChanged
         , view = view
         }
 
 type Msg =
     GotData (Result Http.Error (List Talk))
     | ToggleDayFilter String
-    | ToggleSessionFilter String
-    | ToggleShowSessionsFilter
+    | SetSessionFilter String
+    | SessionFilterChanged Dropdown.State
     | ToggleShowFullAbstract
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
@@ -113,15 +117,8 @@ updateM msg model =
                             then S.remove d m.days
                             else S.insert d m.days
                     in ShowTalks { m | days = newSet }
-                ToggleShowSessionsFilter ->
-                    ShowTalks { m | showSessionsFilter = not m.showSessionsFilter }
-                ToggleSessionFilter d ->
-                        let
-                            newSet =
-                                if S.member d m.sessions
-                                then S.remove d m.sessions
-                                else S.insert d m.sessions
-                        in ShowTalks { m | sessions = newSet }
+                SetSessionFilter d -> ShowTalks { m | session = d }
+                SessionFilterChanged s -> ShowTalks { m | sessionFilterState = s }
                 ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
                 UpdateTitleFilter t -> ShowTalks { m | title = t }
                 UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
@@ -148,7 +145,7 @@ viewModel model = case model of
             filterSpeakers = List.filter (\t -> String.contains (String.toLower m.speaker) (String.toLower (Maybe.withDefault "" t.speaker)))
             filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
             filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
-            filterSessions = List.filter (\t -> S.isEmpty m.sessions || S.member t.session m.sessions)
+            filterSessions = List.filter (\t -> m.session == "" || m.session == t.session)
             sel = m.talks
                     |> filterDays
                     |> filterTitles
@@ -194,23 +191,25 @@ viewModel model = case model of
                     , Grid.col [ ]
                         (let
                             filter =
-                                if m.showSessionsFilter
-                                then allSessions
+                                allSessions
                                         |> List.map (\s ->
-                                                Button.button
-                                                        [ (if S.member s m.sessions then Button.primary else Button.outlineSecondary)
-                                                        , Button.onClick (ToggleSessionFilter s)
-                                                        ]
-                                                        [ Html.text s ]
+                                                Dropdown.buttonItem
+                                                    [ HE.onClick (SetSessionFilter s)
+                                                    ]
+                                                    [ Html.text s ]
                                                 )
-                                else []
                         in [Html.h4 [] [Html.text "Filter by session" ]
-                           ,Button.button
-                                [ (if m.showSessionsFilter then Button.primary else Button.outlineSecondary)
-                                , Button.onClick ToggleShowSessionsFilter
-                                ]
-                                [ Html.text (if m.showSessionsFilter then "Hide sessions" else "Show sessions") ]
-                           ] ++  filter)
+                            , Dropdown.dropdown
+                                m.sessionFilterState
+                                { options = [ Dropdown.alignMenuRight ]
+                                , toggleMsg = SessionFilterChanged
+                                , toggleButton =
+                                    Dropdown.toggle [ ] [ Html.text "Select session" ]
+                                , items =
+                                    ([ Dropdown.buttonItem [ HE.onClick (SetSessionFilter "") ] [ Html.text "All sessions" ]
+                                    , Dropdown.divider ] ++ filter)
+                                }
+                            ])
                     , Grid.col [ ]
                         [Html.h4 [] [Html.text "Filter by speaker" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.speaker, HE.onInput UpdateSpeakerFilter ] []
