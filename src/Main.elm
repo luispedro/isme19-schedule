@@ -245,6 +245,9 @@ viewModel model = case model of
                                     ([ Dropdown.buttonItem [ HE.onClick (SetSessionFilter "") ] [ Html.text "All sessions" ]
                                     , Dropdown.divider ] ++ filter)
                                 }
+                            , if m.session /= ""
+                                then Html.p [] [ Html.text "Currently showing only: ", Html.i [] [ Html.text m.session ] ]
+                                else Html.p [] [ ]
                             ])
                     , Grid.col [ ]
                         [Html.h4 [] [Html.text "Filter by speaker" ]
