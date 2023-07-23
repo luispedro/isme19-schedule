@@ -38,6 +38,11 @@ decodeTalk = J.map7 Talk
     (J.field "Session" J.string)
     (J.field "Abstract" (J.nullable J.string))
 
+type SortOrder =
+    ByTime
+    | ByAuthor
+    | BySession
+
 type alias FilterSet =
     { days : S.Set String
     , session : String
@@ -46,6 +51,7 @@ type alias FilterSet =
     , title : String
     , abstract : String
     , showFullAbstract : Bool
+    , sortOrder : SortOrder
     , talks : List Talk
     }
 
@@ -59,6 +65,7 @@ initFilters talks =
     , title = ""
     , abstract = ""
     , showFullAbstract = False
+    , sortOrder = ByTime
     , talks = talks
     }
 
@@ -89,6 +96,7 @@ type Msg =
     | SetSessionFilter String
     | SessionFilterChanged Dropdown.State
     | ToggleShowFullAbstract
+    | SetSortOrder SortOrder
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
     | UpdateAbstractFilter String
@@ -120,6 +128,7 @@ updateM msg model =
                 SetSessionFilter d -> ShowTalks { m | session = d }
                 SessionFilterChanged s -> ShowTalks { m | sessionFilterState = s }
                 ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
+                SetSortOrder o -> ShowTalks { m | sortOrder = o }
                 UpdateTitleFilter t -> ShowTalks { m | title = t }
                 UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
                 UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
@@ -135,6 +144,28 @@ view m =
             []
         , viewModel m ]
 
+
+parseTime : String -> (Int, Int)
+parseTime t =
+    let
+        parts = t
+                |> String.split "-"
+                |> List.map String.trim
+                |> List.head
+                |> Maybe.withDefault ""
+                |> String.split ":"
+                |> List.map String.trim
+    in
+        ( parts
+            |> List.head
+            |> Maybe.andThen String.toInt
+            |> Maybe.withDefault 0
+        , parts
+            |> List.tail
+            |> Maybe.andThen List.head
+            |> Maybe.andThen String.toInt
+            |> Maybe.withDefault 0
+        )
 
 viewModel model = case model of
     Loading -> Html.text "Loading..."
@@ -152,6 +183,11 @@ viewModel model = case model of
                     |> filterSpeakers
                     |> filterAbstracts
                     |> filterSessions
+                    |> (case m.sortOrder of
+                        ByTime -> List.sortBy (\t -> (t.day, parseTime t.time, t.session))
+                        ByAuthor -> List.sortBy (\t -> (Maybe.withDefault "ZZZ" t.speaker, t.day, parseTime t.time))
+                        BySession -> List.sortBy (\t -> (t.session, t.day, parseTime t.time))
+                        )
             allDays = List.map (\t -> t.day) m.talks
                         |> S.fromList
                         |> S.toList
@@ -235,11 +271,11 @@ viewModel model = case model of
                 , Table.table
                     { options = [ Table.striped, Table.hover, Table.responsive ]
                     , thead =  Table.simpleThead
-                        [ Table.th [] [ Html.text "When?" ]
+                        [ Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByTime) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "When?" ] ]
                         , Table.th [] [ Html.text "Room" ]
-                        , Table.th [] [ Html.text "Speaker" ]
+                        , Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByAuthor) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Speaker" ] ]
                         , Table.th [] [ Html.text "Title" ]
-                        , Table.th [] [ Html.text "Session" ]
+                        , Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder BySession) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Session" ] ]
                         , Table.th [] [ Html.text "Abstract" ]
                         ]
                     , tbody =
