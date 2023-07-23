@@ -216,7 +216,7 @@ viewModel model = case model of
                 ]
             , Grid.simpleRow
                     [ Grid.col [ ]
-                        ((Html.h4 [] [Html.text "Filter by day" ])::
+                        ((Html.h4 [] [Html.text "Filter by days" ])::
                         List.map (\d ->
                                 Button.button
                                         [ (if S.member d m.days then Button.primary else Button.outlineSecondary)
