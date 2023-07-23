@@ -6,6 +6,8 @@ import Set as S
 
 import Html
 import Http
+import Task
+import Time
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events as HE
@@ -43,6 +45,23 @@ type SortOrder =
     | ByAuthor
     | BySession
 
+
+type alias SimpleTime = { day : Int, hour : Int }
+
+getSimpleTime : Time.Posix -> SimpleTime
+getSimpleTime t =
+    let
+        hourUTC = Time.toHour Time.utc t
+        minUTC = Time.toMinute Time.utc t
+        looseHourUTC =
+            if minUTC < 15
+            then hourUTC - 1
+            else hourUTC
+    in
+        { day = Time.toDay Time.utc t
+        , hour = 2 + looseHourUTC -- 2 + is to adjust to French time
+        }
+
 type alias FilterSet =
     { days : S.Set String
     , session : String
@@ -52,6 +71,8 @@ type alias FilterSet =
     , abstract : String
     , showFullAbstract : Bool
     , sortOrder : SortOrder
+    , now : SimpleTime
+    , showPastTalks : Bool
     , talks : List Talk
     }
 
@@ -66,6 +87,8 @@ initFilters talks =
     , abstract = ""
     , showFullAbstract = False
     , sortOrder = ByTime
+    , now = { day = 23, hour = 12 }
+    , showPastTalks = False
     , talks = talks
     }
 
@@ -92,46 +115,82 @@ main = let
 
 type Msg =
     GotData (Result Http.Error (List Talk))
+    | CurTime Time.Posix
     | ToggleDayFilter String
     | SetSessionFilter String
     | SessionFilterChanged Dropdown.State
+    | ToggleShowPastTalks
     | ToggleShowFullAbstract
     | SetSortOrder SortOrder
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
     | UpdateAbstractFilter String
 
-update msg model = (updateM msg model, Cmd.none)
+update msg model =
+    let nmodel = case msg of
+            GotData r -> case r of
+              Ok d -> ShowTalks <| initFilters d
+              Err err -> LoadFailed <| case err of
+                Http.BadUrl e -> "BadURL: " ++ e
+                Http.Timeout -> "TimeOut"
+                Http.NetworkError -> "NetworkError"
+                Http.BadStatus c -> "BadStatus: " ++ String.fromInt c
+                Http.BadBody e -> "BadBody: " ++ e
+            _ -> case model of
+                Loading -> model
+                LoadFailed err -> model
+                ShowTalks m -> case msg of
+                    GotData _ -> model -- impossible, but needed to satisfy the compiler
+                    CurTime t -> ShowTalks <| adjustDays { m | now = getSimpleTime t}
+                    ToggleDayFilter d ->
+                        let
+                            newSet =
+                                if S.member d m.days
+                                then S.remove d m.days
+                                else S.insert d m.days
+                        in ShowTalks { m | days = newSet }
+                    SetSessionFilter d -> ShowTalks { m | session = d }
+                    SessionFilterChanged s -> ShowTalks { m | sessionFilterState = s }
+                    ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
+                    ToggleShowPastTalks -> ShowTalks <| adjustDays { m | showPastTalks = not m.showPastTalks }
+                    SetSortOrder o -> ShowTalks { m | sortOrder = o }
+                    UpdateTitleFilter t -> ShowTalks { m | title = t }
+                    UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
+                    UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
+        cmd = case msg of
+            GotData (Ok _) -> Task.perform CurTime Time.now
+            _ -> Cmd.none
+    in (nmodel, cmd)
 
-updateM msg model =
-    case msg of
-        GotData r -> case r of
-          Ok d -> ShowTalks <| initFilters d
-          Err err -> LoadFailed <| case err of
-            Http.BadUrl e -> "BadURL: " ++ e
-            Http.Timeout -> "TimeOut"
-            Http.NetworkError -> "NetworkError"
-            Http.BadStatus c -> "BadStatus: " ++ String.fromInt c
-            Http.BadBody e -> "BadBody: " ++ e
-        _ -> case model of
-            Loading -> model
-            LoadFailed err -> model
-            ShowTalks m -> case msg of
-                GotData _ -> model -- impossible, but needed to satisfy the compiler
-                ToggleDayFilter d ->
-                    let
-                        newSet =
-                            if S.member d m.days
-                            then S.remove d m.days
-                            else S.insert d m.days
-                    in ShowTalks { m | days = newSet }
-                SetSessionFilter d -> ShowTalks { m | session = d }
-                SessionFilterChanged s -> ShowTalks { m | sessionFilterState = s }
-                ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
-                SetSortOrder o -> ShowTalks { m | sortOrder = o }
-                UpdateTitleFilter t -> ShowTalks { m | title = t }
-                UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
-                UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
+hasPassed : Talk -> SimpleTime -> Bool
+hasPassed t now = talkDay t.day < now.day || talkDay t.day == now.day && talkHour t.time < now.hour
+
+adjustDays : FilterSet -> FilterSet
+adjustDays m =
+    if m.showPastTalks
+    then { m | days = List.map .day m.talks |> S.fromList }
+    else let
+            asDayString : Int -> String
+            asDayString d = case d of
+                23 -> "July 23rd"
+                24 -> "July 24th"
+                25 -> "July 25th"
+                26 -> "July 26th"
+                27 -> "July 27th"
+                _ -> "x"
+            ndays : S.Set String
+            ndays = List.foldl (\d active -> S.remove (asDayString d) active) m.days (List.range 23 (m.now.day - 1))
+        in { m | days = ndays }
+
+
+talkDay t = case String.split " " t of
+    [_, n] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
+    _ -> 0
+
+talkHour t =
+    let
+        (h, _) = parseTime t
+    in h
 
 view m =
     Html.div []
@@ -177,12 +236,14 @@ viewModel model = case model of
             filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
             filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
             filterSessions = List.filter (\t -> m.session == "" || m.session == t.session)
+            filterPastTalks = List.filter (\t -> m.showPastTalks || not (hasPassed t m.now))
             sel = m.talks
                     |> filterDays
                     |> filterTitles
                     |> filterSpeakers
                     |> filterAbstracts
                     |> filterSessions
+                    |> filterPastTalks
                     |> (case m.sortOrder of
                         ByTime -> List.sortBy (\t -> (t.day, parseTime t.time, t.session))
                         ByAuthor -> List.sortBy (\t -> (Maybe.withDefault "ZZZ" t.speaker, t.day, parseTime t.time))
@@ -216,14 +277,18 @@ viewModel model = case model of
                 ]
             , Grid.simpleRow
                     [ Grid.col [ ]
-                        ((Html.h4 [] [Html.text "Filter by days" ])::
+                        (((Html.h4 [] [Html.text "Filter by days" ])::
                         List.map (\d ->
                                 Button.button
                                         [ (if S.member d m.days then Button.primary else Button.outlineSecondary)
                                         , Button.onClick (ToggleDayFilter d)
                                         ]
                                         [ Html.text d ]
-                            ) allDays)
+                            ) allDays) ++ [Button.button
+                                [ (if m.showPastTalks then Button.primary else Button.outlineSecondary)
+                                , Button.onClick ToggleShowPastTalks
+                                ]
+                                [ Html.text (if m.showPastTalks then "Hide past talks" else "Show past talks") ]])
                     , Grid.col [ ]
                         (let
                             filter =
