@@ -109,7 +109,10 @@ main = let
         , subscriptions = \model -> case model of
             Loading -> Sub.none
             LoadFailed _ -> Sub.none
-            ShowTalks m -> Dropdown.subscriptions m.sessionFilterState SessionFilterChanged
+            ShowTalks m -> Sub.batch
+                                [ Dropdown.subscriptions m.sessionFilterState SessionFilterChanged
+                                , Time.every (60 * 60 * 1000) CurTime -- This is every hour
+                                ]
         , view = view
         }
 
