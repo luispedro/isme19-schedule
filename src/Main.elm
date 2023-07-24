@@ -103,7 +103,7 @@ main = let
             { url = "ISMB_ECCB_2023_All_sessions.json"
             , expect = Http.expectJson GotData (J.list decodeTalk)
             }
-    in Browser.element
+    in Browser.document
         { init = \() -> (Loading, getTalks)
         , update = update
         , subscriptions = \model -> case model of
@@ -195,8 +195,10 @@ talkHour t =
         (h, _) = parseTime t
     in h
 
+view : Model -> Browser.Document Msg
 view m =
-    Html.div []
+    { title = "ISMB ECCB 2023 - Schedule"
+    , body =
         [ CDN.stylesheet
         , CDN.fontAwesome
         , Html.node "link"
@@ -204,7 +206,8 @@ view m =
             , HtmlAttr.href "style.css"
             ]
             []
-        , viewModel m ]
+        , viewModel m
+    ]}
 
 
 parseTime : String -> (Int, Int)
