@@ -47,20 +47,17 @@ type SortOrder =
     | BySession
 
 
-type alias SimpleTime = { day : Int, hour : Int }
+type alias SimpleTime = { day : Int, hour : Int, min : Int }
 
 getSimpleTime : Time.Posix -> SimpleTime
 getSimpleTime t =
     let
         hourUTC = Time.toHour Time.utc t
         minUTC = Time.toMinute Time.utc t
-        looseHourUTC =
-            if minUTC < 15
-            then hourUTC - 1
-            else hourUTC
     in
         { day = Time.toDay Time.utc t
-        , hour = 2 + looseHourUTC -- 2 + is to adjust to French time
+        , hour = 2 + hourUTC -- 2 + is to adjust to French time
+        , min = minUTC
         }
 
 type alias FilterSet =
@@ -88,7 +85,7 @@ initFilters talks =
     , abstract = ""
     , showFullAbstract = False
     , sortOrder = ByTime
-    , now = { day = 23, hour = 12 }
+    , now = { day = 23, hour = 12, min = 0 }
     , showPastTalks = False
     , talks = talks
     }
@@ -166,8 +163,23 @@ update msg model =
             _ -> Cmd.none
     in (nmodel, cmd)
 
+
+add30mins : (Int, Int) -> (Int, Int)
+add30mins (h, m) =
+    if m > 30
+    then (h + 1, m - 30)
+    else (h, m + 30)
+
 hasPassed : Talk -> SimpleTime -> Bool
-hasPassed t now = talkDay t.day < now.day || talkDay t.day == now.day && talkHour t.time < now.hour
+hasPassed t now =
+    let
+        (startH30, startM30) = add30mins <| parseTime t.time
+    in
+        if talkDay t.day < now.day
+        then True
+        else if talkDay t.day > now.day
+        then False
+        else startH30 < now.hour || startH30 == now.hour && startM30 < now.min
 
 adjustDays : FilterSet -> FilterSet
 adjustDays m =
@@ -192,10 +204,6 @@ talkDay t = case String.split " " t of
     [_, n] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
     _ -> 0
 
-talkHour t =
-    let
-        (h, _) = parseTime t
-    in h
 
 view : Model -> Browser.Document Msg
 view m =
