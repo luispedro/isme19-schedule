@@ -8,6 +8,7 @@ import Html
 import Http
 import Task
 import Time
+import Url.Builder
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events as HE
@@ -186,6 +187,7 @@ adjustDays m =
         in { m | days = ndays }
 
 
+talkDay : String -> Int
 talkDay t = case String.split " " t of
     [_, n] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
     _ -> 0
@@ -356,7 +358,11 @@ viewModel model = case model of
                         sel
                             |> List.map (\t ->
                                 Table.tr []
-                                    [ Table.td [] [ Html.text <| t.day ++ " " ++ t.time ]
+                                    [ Table.td [] [
+                                            Html.text <| t.day ++ " " ++ t.time
+                                            ,Html.a [ HtmlAttr.href <| createGoogleCalLink t, HtmlAttr.target "_blank" ]
+                                                [ Html.text " (add to calendar)" ]
+                                            ]
                                     , Table.td [] [ Html.text t.room ]
                                     , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
                                     , Table.td [] [ showHits m.title t.title ]
@@ -405,3 +411,45 @@ showHits filter abstract =
     Html.p []
         (showMatches 0 matches)
 
+asCalendarTime : String -> String -> String
+asCalendarTime day time =
+    let
+        dayn = talkDay day
+        startEnd =
+            String.split "-" time
+            |> List.map (String.split ":")
+    in
+    case startEnd of
+        [[hourStart, minuteStart], [hourEnd, minuteEnd]] ->
+            String.concat
+                [ "2023"
+                , "07"
+                , String.fromInt dayn
+                , "T"
+                , hourStart
+                , minuteStart
+                , "00"
+                , "+02:00" -- France
+                , "/"
+                , "2023"
+                , "07"
+                , String.fromInt dayn
+                , "T"
+                , hourEnd
+                , minuteEnd
+                , "00"
+                , "+02:00" -- France
+                ]
+        _ -> ""
+
+
+createGoogleCalLink : Talk -> String
+createGoogleCalLink talk =
+    Url.Builder.crossOrigin
+        "https://calendar.google.com" ["calendar", "event"]
+        [ Url.Builder.string "text" talk.title
+        , Url.Builder.string "dates" (asCalendarTime talk.day talk.time)
+        , Url.Builder.string "details" (String.left 200 <| Maybe.withDefault "" talk.abstract)
+        , Url.Builder.string "location" talk.room
+        , Url.Builder.string "action" "TEMPLATE"
+        ]
