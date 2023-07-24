@@ -447,7 +447,7 @@ createGoogleCalLink : Talk -> String
 createGoogleCalLink talk =
     Url.Builder.crossOrigin
         "https://calendar.google.com" ["calendar", "event"]
-        [ Url.Builder.string "text" talk.title
+        [ Url.Builder.string "text" (Maybe.withDefault "" talk.speaker ++ ": " ++ talk.title)
         , Url.Builder.string "dates" (asCalendarTime talk.day talk.time)
         , Url.Builder.string "details" (String.left 200 <| Maybe.withDefault "" talk.abstract)
         , Url.Builder.string "location" talk.room
