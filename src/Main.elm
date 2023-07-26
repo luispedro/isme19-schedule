@@ -255,11 +255,11 @@ viewModel model = case model of
             filterPastTalks = List.filter (\t -> m.showPastTalks || not (hasPassed t m.now))
             sel = m.talks
                     |> filterDays
+                    |> filterSessions
                     |> filterTitles
                     |> filterSpeakers
-                    |> filterAbstracts
-                    |> filterSessions
                     |> filterPastTalks
+                    |> filterAbstracts
                     |> (case m.sortOrder of
                         ByTime -> List.sortBy (\t -> (t.day, parseTime t.time, t.session))
                         ByAuthor -> List.sortBy (\t -> (Maybe.withDefault "ZZZ" t.speaker, t.day, parseTime t.time))
