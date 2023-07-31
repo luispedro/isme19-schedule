@@ -86,7 +86,8 @@ initFilters talks =
     , showFullAbstract = False
     , sortOrder = ByTime
     , now = { day = 23, hour = 12, min = 0 }
-    , showPastTalks = False
+    -- conference has passed, so we show all talks
+    , showPastTalks = True
     , talks = talks
     }
 
@@ -142,7 +143,9 @@ update msg model =
                 LoadFailed err -> model
                 ShowTalks m -> case msg of
                     GotData _ -> model -- impossible, but needed to satisfy the compiler
-                    CurTime t -> ShowTalks <| adjustDays { m | now = getSimpleTime t}
+                    -- conference has passed, so time is not updated anymore
+                    CurTime t -> -- ShowTalks <| adjustDays { m | now = getSimpleTime t}
+                                ShowTalks m
                     ToggleDayFilter d ->
                         let
                             newSet =
@@ -300,11 +303,12 @@ viewModel model = case model of
                                         , Button.onClick (ToggleDayFilter d)
                                         ]
                                         [ Html.text d ]
-                            ) allDays) ++ [Button.button
+                            ) allDays)) {- ++ [Button.button
                                 [ (if m.showPastTalks then Button.primary else Button.outlineSecondary)
                                 , Button.onClick ToggleShowPastTalks
                                 ]
                                 [ Html.text (if m.showPastTalks then "Hide past talks" else "Show past talks") ]])
+                            -}
                     , Grid.col [ ]
                         (let
                             filter =
