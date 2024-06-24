@@ -2,6 +2,10 @@
     margin: 2px;
 }
 
+#main {
+    padding-bottom: 50px;
+}
+
 .footer {
     position: fixed;
     left: 0;

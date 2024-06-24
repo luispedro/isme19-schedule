@@ -301,7 +301,7 @@ viewModel model = case model of
                         |> S.fromList
                         |> S.toList
                         |> List.sort
-        in Grid.containerFluid []
+        in Grid.containerFluid [HtmlAttr.id "main"]
             [ Grid.simpleRow
                 [ Grid.col []
                     [ Html.h1 [] [ Html.text "ISMB 2024" ]
