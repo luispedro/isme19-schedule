@@ -1,32 +1,39 @@
+import requests
 import pandas as pd
-COLS = ['Session',
+from os import path
+
+COLS = [
+ 'Track',
  'Room',
  'Weekday',
  'Date',
  'Timespan',
  'Format',
- 'Type',
  'Speaker',
  'Title',
  'Abstract']
 
-URL = 'https://docs.google.com/spreadsheets/d/169W9o9nGMqYQ5Ojplh1jd3WkEHNgWk4EwREkWo6fD6k/gviz/tq?tqx=out:csv'
-timetable = pd.read_csv(URL, usecols=COLS)
+URL = 'https://www.iscb.org/images/stories/ismb2024/document.ScheduleByTrack.ISMB.2024.xlsx'
+if not path.exists(path.basename(URL)):
+    print('Downloading file...')
+    r = requests.get(URL)
+    with open(path.basename(URL), 'wb') as f:
+        f.write(r.content)
 
-def fix_encoding1(s):
-    try:
-        return s.encode('macroman').decode('utf-8')
-    except:
-        return s
-def fix_encodings(talk):
-    if talk.Session == "Function":
-        talk.Title = fix_encoding1(talk.Title)
-        talk.Speaker = fix_encoding1(talk.Speaker)
-    return talk
+timetable = pd.read_excel(path.basename(URL))
+timetable = timetable.iloc[:-1]
+timetable.rename(columns={'Confirmed Presenter': 'Speaker'}, inplace=True)
+timetable['Room'] = timetable['Room'].fillna('-').astype(str)
+timetable['Weekday'] = timetable['Date'].dt.day_name()
 
-timetable = timetable.apply(fix_encodings, axis=1)
+assert set(timetable["Start Time"].dropna().astype(str).str.split(':').str[-1]) == {'00'}
+assert set(timetable["End Time"].dropna().astype(str).str.split(':').str[-1]) == {'00'}
 
-with open('ISMB_ECCB_2023_All_sessions.json', 'wt') as out:
+timetable['Timespan'] = timetable.apply(lambda x: x['Start Time'].strftime('%H:%M') + '-' + x['End Time'].strftime('%H:%M'), axis=1)
+timetable['Date'] = timetable['Date'].dt.strftime('%d %B')
+timetable = timetable[COLS]
+
+with open('ISMB_2024_All_sessions.json', 'wt') as out:
     timetable.to_json(
             out,
             orient='records',

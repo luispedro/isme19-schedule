@@ -38,7 +38,7 @@ decodeTalk = J.map7 Talk
     (J.field "Speaker" (J.nullable J.string))
     (J.field "Room" J.string)
     (J.field "Title" J.string)
-    (J.field "Session" J.string)
+    (J.field "Track" J.string)
     (J.field "Abstract" (J.nullable J.string))
 
 type SortOrder =
@@ -47,17 +47,36 @@ type SortOrder =
     | BySession
 
 
-type alias SimpleTime = { day : Int, hour : Int, min : Int }
+type alias SimpleTime = { day : Int, hour : Int, min : Int, year : Int, month : Int }
+
+monthToInt : Time.Month -> Int
+monthToInt m = case m of
+    Time.Jan -> 1
+    Time.Feb -> 2
+    Time.Mar -> 3
+    Time.Apr -> 4
+    Time.May -> 5
+    Time.Jun -> 6
+    Time.Jul -> 7
+    Time.Aug -> 8
+    Time.Sep -> 9
+    Time.Oct -> 10
+    Time.Nov -> 11
+    Time.Dec -> 12
+
 
 getSimpleTime : Time.Posix -> SimpleTime
 getSimpleTime t =
     let
         hourUTC = Time.toHour Time.utc t
         minUTC = Time.toMinute Time.utc t
+
     in
         { day = Time.toDay Time.utc t
-        , hour = 2 + hourUTC -- 2 + is to adjust to French time
+        , hour = hourUTC - 4 -- - 4 is to adjust to Quebec time
         , min = minUTC
+        , year = Time.toYear Time.utc t
+        , month = Time.toMonth Time.utc t |> monthToInt
         }
 
 type alias FilterSet =
@@ -85,8 +104,8 @@ initFilters talks =
     , abstract = ""
     , showFullAbstract = False
     , sortOrder = ByTime
-    , now = { day = 23, hour = 12, min = 0 }
-    -- conference has passed, so we show all talks
+    , now = { day = 11, hour = 12, min = 0, year = 2024, month = 7}
+    -- conference has not yet started!
     , showPastTalks = True
     , talks = talks
     }
@@ -99,7 +118,7 @@ type Model =
 main = let
         getTalks : Cmd Msg
         getTalks = Http.get
-            { url = "ISMB_ECCB_2023_All_sessions.json"
+            { url = "ISMB_2024_All_sessions.json"
             , expect = Http.expectJson GotData (J.list decodeTalk)
             }
     in Browser.document
@@ -178,7 +197,11 @@ hasPassed t now =
     let
         (startH30, startM30) = add30mins <| parseTime t.time
     in
-        if talkDay t.day < now.day
+        if now.year > 2024
+        then True
+        else if now.month < 7
+        then False
+        else if talkDay t.day < now.day
         then True
         else if talkDay t.day > now.day
         then False
@@ -210,7 +233,7 @@ talkDay t = case String.split " " t of
 
 view : Model -> Browser.Document Msg
 view m =
-    { title = "ISMB ECCB 2023 - Schedule"
+    { title = "ISMB 2024 - Schedule"
     , body =
         [ CDN.stylesheet
         , CDN.fontAwesome
@@ -220,6 +243,7 @@ view m =
             ]
             []
         , viewModel m
+        , footer
     ]}
 
 
@@ -280,18 +304,8 @@ viewModel model = case model of
         in Grid.containerFluid []
             [ Grid.simpleRow
                 [ Grid.col []
-                    [ Html.h1 [] [ Html.text "ISMB/ECCB 2023" ]
-                    , Html.p [] [ Html.text "This is a list of all sessions at ISMB/ECCB 2023."]
-                    , Html.p [] [ Html.text "Created by "
-                                , Html.a [ HtmlAttr.href "https://luispedro.org/"]
-                                    [ Html.text "Luis Pedro Coelho" ]
-                                , Html.text " based on a table from "
-                                , Html.a [ HtmlAttr.href "https://twitter.com/larsjuhljensen"]
-                                    [ Html.text "Lars Juhl Jensen" ]
-                                , Html.text ". Code is available on "
-                                , Html.a [ HtmlAttr.href "https://github.com/luispedro/ismb-schedule" ]
-                                    [ Html.text "GitHub" ]
-                                ]
+                    [ Html.h1 [] [ Html.text "ISMB 2024" ]
+                    , Html.p [] [ Html.text "This is a list of all sessions at ISMB 2024."]
                     ]
                 ]
             , Grid.simpleRow
@@ -387,6 +401,17 @@ viewModel model = case model of
             ]
         ]
 
+footer : Html msg
+footer =
+        Html.div [HtmlAttr.class "footer"]
+                [ Html.p [] [ Html.text "Created by "
+                            , Html.a [ HtmlAttr.href "https://luispedro.org/"]
+                                [ Html.text "Luis Pedro Coelho" ]
+                            , Html.text ". Code is available on "
+                            , Html.a [ HtmlAttr.href "https://github.com/luispedro/ismb-schedule" ]
+                                [ Html.text "GitHub" ]
+                            ]
+                ]
 
 trimAbstract : Bool -> String -> String
 trimAbstract showFull abstract =
@@ -434,16 +459,16 @@ asCalendarTime day time =
     case startEnd of
         [[hourStart, minuteStart], [hourEnd, minuteEnd]] ->
             String.concat
-                [ "2023"
+                [ "2024"
                 , "07"
                 , String.fromInt dayn
                 , "T"
                 , hourStart
                 , minuteStart
                 , "00"
-                , "+02:00" -- France
+                , "-04:00" -- France
                 , "/"
-                , "2023"
+                , "2024"
                 , "07"
                 , String.fromInt dayn
                 , "T"
