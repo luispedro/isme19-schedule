@@ -213,13 +213,7 @@ adjustDays m =
     then { m | days = List.map .day m.talks |> S.fromList }
     else let
             asDayString : Int -> String
-            asDayString d = case d of
-                23 -> "July 23rd"
-                24 -> "July 24th"
-                25 -> "July 25th"
-                26 -> "July 26th"
-                27 -> "July 27th"
-                _ -> "x"
+            asDayString d = (String.fromInt d) ++ " July"
             ndays : S.Set String
             ndays = List.foldl (\d active -> S.remove (asDayString d) active) m.days (List.range 23 (m.now.day - 1))
         in { m | days = ndays }
@@ -227,7 +221,7 @@ adjustDays m =
 
 talkDay : String -> Int
 talkDay t = case String.split " " t of
-    [_, n] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
+    [n, _] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
     _ -> 0
 
 
@@ -455,6 +449,10 @@ asCalendarTime day time =
         startEnd =
             String.split "-" time
             |> List.map (String.split ":")
+        adjustTimezone : String -> String
+        adjustTimezone =
+            -- + 4 is to adjust for Quebec time
+            String.toInt >> Maybe.withDefault 0 >> (\t -> t + 4) >> String.fromInt >> (\t -> if String.length t == 1 then "0" ++ t else t)
     in
     case startEnd of
         [[hourStart, minuteStart], [hourEnd, minuteEnd]] ->
@@ -463,19 +461,19 @@ asCalendarTime day time =
                 , "07"
                 , String.fromInt dayn
                 , "T"
-                , hourStart
+                , adjustTimezone hourStart
                 , minuteStart
                 , "00"
-                , "-04:00" -- France
+                , "Z"
                 , "/"
                 , "2024"
                 , "07"
                 , String.fromInt dayn
                 , "T"
-                , hourEnd
+                , adjustTimezone hourEnd
                 , minuteEnd
                 , "00"
-                , "+02:00" -- France
+                , "Z"
                 ]
         _ -> ""
 
