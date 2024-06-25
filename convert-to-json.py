@@ -32,6 +32,7 @@ assert set(timetable["End Time"].dropna().astype(str).str.split(':').str[-1]) ==
 timetable['Timespan'] = timetable.apply(lambda x: x['Start Time'].strftime('%H:%M') + '-' + x['End Time'].strftime('%H:%M'), axis=1)
 timetable['Date'] = timetable['Date'].dt.strftime('%d %B')
 timetable = timetable[COLS]
+timetable = timetable.query('Track != "This Track is Used for Testing"')
 
 with open('ISMB_2024_All_sessions.json', 'wt') as out:
     timetable.to_json(
