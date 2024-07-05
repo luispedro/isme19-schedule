@@ -86,13 +86,15 @@ type alias FilterSet =
     , speaker : String
     , title : String
     , abstract : String
-    , showFullAbstract : Bool
+    , showFullAbstractsAll : Bool
+    , expandAbstracts : S.Set String
     , sortOrder : SortOrder
     , now : SimpleTime
     , showPastTalks : Bool
     , talks : List Talk
     }
 
+initFilters : List Talk -> FilterSet
 initFilters talks =
     { days = talks
                 |> List.map .day
@@ -102,7 +104,8 @@ initFilters talks =
     , speaker = ""
     , title = ""
     , abstract = ""
-    , showFullAbstract = False
+    , showFullAbstractsAll = False
+    , expandAbstracts = S.empty
     , sortOrder = ByTime
     , now = { day = 11, hour = 12, min = 0, year = 2024, month = 7}
     -- conference has not yet started!
@@ -142,6 +145,7 @@ type Msg =
     | SessionFilterChanged Dropdown.State
     | ToggleShowPastTalks
     | ToggleShowFullAbstract
+    | ExpandAbstract String
     | SetSortOrder SortOrder
     | UpdateTitleFilter String
     | UpdateSpeakerFilter String
@@ -174,8 +178,9 @@ update msg model =
                         in ShowTalks { m | days = newSet }
                     SetSessionFilter d -> ShowTalks { m | session = d }
                     SessionFilterChanged s -> ShowTalks { m | sessionFilterState = s }
-                    ToggleShowFullAbstract -> ShowTalks { m | showFullAbstract = not m.showFullAbstract }
+                    ToggleShowFullAbstract -> ShowTalks { m | showFullAbstractsAll = not m.showFullAbstractsAll }
                     ToggleShowPastTalks -> ShowTalks <| adjustDays { m | showPastTalks = not m.showPastTalks }
+                    ExpandAbstract a -> ShowTalks { m | expandAbstracts = S.insert a m.expandAbstracts }
                     SetSortOrder o -> ShowTalks { m | sortOrder = o }
                     UpdateTitleFilter t -> ShowTalks { m | title = t }
                     UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
@@ -360,10 +365,10 @@ viewModel model = case model of
                     [ Grid.col [ ]
                 [ Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " talks") ]
                 , Button.button
-                    [ (if m.showFullAbstract then Button.primary else Button.outlineSecondary)
+                    [ (if m.showFullAbstractsAll then Button.primary else Button.outlineSecondary)
                     , Button.onClick ToggleShowFullAbstract
                     ]
-                    [ Html.text (if m.showFullAbstract then "Trim abstracts" else "Expand abstracts") ]
+                    [ Html.text (if m.showFullAbstractsAll then "Trim abstracts" else "Expand abstracts") ]
                 , Table.table
                     { options = [ Table.striped, Table.hover, Table.responsive ]
                     , thead =  Table.simpleThead
@@ -387,7 +392,7 @@ viewModel model = case model of
                                     , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
                                     , Table.td [] [ showHits m.title t.title ]
                                     , Table.td [] [ Html.text t.session ]
-                                    , Table.td [] [ showHits m.abstract <| trimAbstract m.showFullAbstract (Maybe.withDefault "" t.abstract) ]
+                                    , Table.td [] ( showAbstract m t.abstract )
                                     ])
                             |> Table.tbody []
                     }
@@ -407,18 +412,24 @@ footer =
                             ]
                 ]
 
-trimAbstract : Bool -> String -> String
-trimAbstract showFull abstract =
-    if showFull
-    then abstract
-    else
+
+showAbstract : FilterSet -> Maybe String -> List (Html.Html Msg)
+showAbstract m t = case t of
+    Nothing -> [Html.text ""]
+    Just abstract ->
         let
+            showFull = m.showFullAbstractsAll || S.member abstract m.expandAbstracts
             maxLen = 150
             trimmed = String.left maxLen abstract
         in
-        if String.length abstract <= maxLen
-        then abstract
-        else trimmed ++ "..."
+        if showFull
+        then [showHits m.abstract abstract]
+        else [showHits m.abstract trimmed
+            , Html.span [ HE.onClick (ExpandAbstract abstract) ]
+                [ Html.text " [...]" ]
+            ]
+
+
 showHits filter abstract =
     if filter == ""
     then Html.text abstract
