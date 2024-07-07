@@ -34,6 +34,18 @@ timetable['Date'] = timetable['Date'].dt.strftime('%d %B')
 timetable = timetable[COLS]
 timetable = timetable.query('Track != "This Track is Used for Testing"')
 
+KEYNOTE_SPEAKERS = {
+        'Sensitive Sustainable Science': 'Fiona S. L. Brinkman',
+        'Progress in Large-Scale Phylogenomic Estimation Methods': 'Tandy Warnow',
+        'Human genome 2.0 : why a pangenome graph is better for genetic and epigenetic analyses': 'Guillaume Bourque',
+        'Supercharged Protein Analysis in the Era of Accurate Structure Prediction': 'Martin Steinegger',
+        'Explainable AI for health: where we are and how to move forward': 'Su-In Lee',
+        }
+
+for ix in timetable.query('Track == "Distinguished Keynotes"').index:
+    assert pd.isna(timetable.loc[ix].Speaker)
+    timetable.loc[ix, 'Speaker'] = KEYNOTE_SPEAKERS[timetable.loc[ix].Title]
+
 with open('ISMB_2024_All_sessions.json', 'wt') as out:
     timetable.to_json(
             out,
