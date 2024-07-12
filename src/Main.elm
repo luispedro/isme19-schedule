@@ -94,6 +94,8 @@ type alias FilterSet =
     , talks : List Talk
     }
 
+conferenceActive = True
+
 initFilters : List Talk -> FilterSet
 initFilters talks =
     { days = talks
@@ -108,8 +110,7 @@ initFilters talks =
     , expandAbstracts = S.empty
     , sortOrder = ByTime
     , now = { day = 11, hour = 12, min = 0, year = 2024, month = 7}
-    -- conference has not yet started!
-    , showPastTalks = True
+    , showPastTalks = not conferenceActive
     , talks = talks
     }
 
@@ -132,7 +133,7 @@ main = let
             LoadFailed _ -> Sub.none
             ShowTalks m -> Sub.batch
                                 [ Dropdown.subscriptions m.sessionFilterState SessionFilterChanged
-                                , Time.every (60 * 60 * 1000) CurTime -- This is every hour
+                                , Time.every (15 * 60 * 1000) CurTime -- Every fifteen minutes
                                 ]
         , view = view
         }
@@ -166,9 +167,10 @@ update msg model =
                 LoadFailed err -> model
                 ShowTalks m -> case msg of
                     GotData _ -> model -- impossible, but needed to satisfy the compiler
-                    -- conference has passed, so time is not updated anymore
-                    CurTime t -> -- ShowTalks <| adjustDays { m | now = getSimpleTime t}
-                                ShowTalks m
+                    CurTime t -> if conferenceActive
+                                then ShowTalks <| adjustDays { m | now = getSimpleTime t}
+                                -- conference has passed, so time is not updated anymore
+                                else ShowTalks m
                     ToggleDayFilter d ->
                         let
                             newSet =
@@ -316,12 +318,14 @@ viewModel model = case model of
                                         , Button.onClick (ToggleDayFilter d)
                                         ]
                                         [ Html.text d ]
-                            ) allDays)) {- ++ [Button.button
-                                [ (if m.showPastTalks then Button.primary else Button.outlineSecondary)
-                                , Button.onClick ToggleShowPastTalks
-                                ]
-                                [ Html.text (if m.showPastTalks then "Hide past talks" else "Show past talks") ]])
-                            -}
+                            ) allDays) ++ (
+                                if conferenceActive
+                                then [Button.button
+                                        [ (if m.showPastTalks then Button.primary else Button.outlineSecondary)
+                                        , Button.onClick ToggleShowPastTalks
+                                        ]
+                                        [ Html.text (if m.showPastTalks then "Hide past talks" else "Show past talks") ]]
+                                else []))
                     , Grid.col [ ]
                         (let
                             filter =
