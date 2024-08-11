@@ -13,6 +13,9 @@ import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events as HE
 
+import Html.Parser as HP
+import Html.Parser.Util as HP
+
 import Bootstrap.CDN as CDN
 import Bootstrap.Button as Button
 import Bootstrap.Dropdown as Dropdown
@@ -24,22 +27,22 @@ import Bootstrap.Table as Table
 type alias Talk =
     { day : String
     , time : String
-    , speaker : Maybe String
     , room : String
     , title : String
     , session : String
-    , abstract : Maybe String
+    , abstract : String
+    , abstractText : String
     }
 
 decodeTalk : J.Decoder Talk
 decodeTalk = J.map7 Talk
-    (J.field "Date" J.string)
-    (J.field "Timespan" J.string)
-    (J.field "Speaker" (J.nullable J.string))
-    (J.field "Room" J.string)
-    (J.field "Title" J.string)
-    (J.field "Track" J.string)
-    (J.field "Abstract" (J.nullable J.string))
+    (J.field "date" J.string)
+    (J.field "time" J.string)
+    (J.field "location" J.string)
+    (J.field "title" J.string)
+    (J.field "type" J.string)
+    (J.field "session-info" J.string)
+    (J.field "session-info-text" J.string)
 
 type SortOrder =
     ByTime
@@ -83,7 +86,6 @@ type alias FilterSet =
     { days : S.Set String
     , session : String
     , sessionFilterState : Dropdown.State
-    , speaker : String
     , title : String
     , abstract : String
     , showFullAbstractsAll : Bool
@@ -103,7 +105,6 @@ initFilters talks =
                 |> S.fromList
     , session = ""
     , sessionFilterState = Dropdown.initialState
-    , speaker = ""
     , title = ""
     , abstract = ""
     , showFullAbstractsAll = False
@@ -122,7 +123,7 @@ type Model =
 main = let
         getTalks : Cmd Msg
         getTalks = Http.get
-            { url = "ISMB_2024_All_sessions.json"
+            { url = "ISME19_all_sessions.json"
             , expect = Http.expectJson GotData (J.list decodeTalk)
             }
     in Browser.document
@@ -149,7 +150,6 @@ type Msg =
     | ExpandAbstract String
     | SetSortOrder SortOrder
     | UpdateTitleFilter String
-    | UpdateSpeakerFilter String
     | UpdateAbstractFilter String
 
 update msg model =
@@ -161,7 +161,7 @@ update msg model =
                 Http.Timeout -> "TimeOut"
                 Http.NetworkError -> "NetworkError"
                 Http.BadStatus c -> "BadStatus: " ++ String.fromInt c
-                Http.BadBody e -> "BadBody: " ++ e
+                Http.BadBody e -> "BadBody error: " ++ e
             _ -> case model of
                 Loading -> model
                 LoadFailed err -> model
@@ -185,7 +185,6 @@ update msg model =
                     ExpandAbstract a -> ShowTalks { m | expandAbstracts = S.insert a m.expandAbstracts }
                     SetSortOrder o -> ShowTalks { m | sortOrder = o }
                     UpdateTitleFilter t -> ShowTalks { m | title = t }
-                    UpdateSpeakerFilter t -> ShowTalks { m | speaker = t }
                     UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
         cmd = case msg of
             GotData (Ok _) -> Task.perform CurTime Time.now
@@ -234,7 +233,7 @@ talkDay t = case String.split " " t of
 
 view : Model -> Browser.Document Msg
 view m =
-    { title = "ISMB 2024 - Schedule"
+    { title = "ISME19 - Schedule"
     , body =
         [ CDN.stylesheet
         , CDN.fontAwesome
@@ -276,21 +275,19 @@ viewModel model = case model of
     ShowTalks m ->
         let
             filterDays = List.filter (\t -> S.member t.day m.days)
-            filterSpeakers = List.filter (\t -> String.contains (String.toLower m.speaker) (String.toLower (Maybe.withDefault "" t.speaker)))
             filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
-            filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower (Maybe.withDefault "" t.abstract)))
+            filterAbstracts = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower t.abstractText))
             filterSessions = List.filter (\t -> m.session == "" || m.session == t.session)
             filterPastTalks = List.filter (\t -> m.showPastTalks || not (hasPassed t m.now))
             sel = m.talks
                     |> filterDays
                     |> filterSessions
                     |> filterTitles
-                    |> filterSpeakers
                     |> filterPastTalks
                     |> filterAbstracts
                     |> (case m.sortOrder of
                         ByTime -> List.sortBy (\t -> (t.day, parseTime t.time, t.session))
-                        ByAuthor -> List.sortBy (\t -> (Maybe.withDefault "ZZZ" t.speaker, t.day, parseTime t.time))
+                        ByAuthor -> List.sortBy (\t -> (t.day, parseTime t.time))
                         BySession -> List.sortBy (\t -> (t.session, t.day, parseTime t.time))
                         )
             allDays = List.map (\t -> t.day) m.talks
@@ -305,8 +302,8 @@ viewModel model = case model of
         in Grid.containerFluid [HtmlAttr.id "main"]
             [ Grid.simpleRow
                 [ Grid.col []
-                    [ Html.h1 [] [ Html.text "ISMB 2024" ]
-                    , Html.p [] [ Html.text "This is a list of all sessions at ISMB 2024."]
+                    [ Html.h1 [] [ Html.text "ISME19" ]
+                    , Html.p [] [ Html.text "This is a list of all sessions at ISME19."]
                     ]
                 ]
             , Grid.simpleRow
@@ -352,10 +349,6 @@ viewModel model = case model of
                                 else Html.p [] [ ]
                             ])
                     , Grid.col [ ]
-                        [Html.h4 [] [Html.text "Filter by speaker" ]
-                        ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.speaker, HE.onInput UpdateSpeakerFilter ] []
-                        ]
-                    , Grid.col [ ]
                         [Html.h4 [] [Html.text "Filter by title" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.title, HE.onInput UpdateTitleFilter ] []
                         ]
@@ -378,7 +371,7 @@ viewModel model = case model of
                     , thead =  Table.simpleThead
                         [ Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByTime) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "When?" ] ]
                         , Table.th [] [ Html.text "Room" ]
-                        , Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByAuthor) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Speaker" ] ]
+                        --, Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByAuthor) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Speaker" ] ]
                         , Table.th [] [ Html.text "Title" ]
                         , Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder BySession) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Session" ] ]
                         , Table.th [] [ Html.text "Abstract" ]
@@ -393,10 +386,10 @@ viewModel model = case model of
                                                 [ Html.text " (add to calendar)" ]
                                             ]
                                     , Table.td [] [ Html.text t.room ]
-                                    , Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
+                                    --, Table.td [] [ showHits m.speaker (Maybe.withDefault "" t.speaker) ]
                                     , Table.td [] [ showHits m.title t.title ]
                                     , Table.td [] [ Html.text t.session ]
-                                    , Table.td [] ( showAbstract m t.abstract )
+                                    , Table.td [] ( showAbstract m t.abstract t.abstractText)
                                     ])
                             |> Table.tbody []
                     }
@@ -411,23 +404,24 @@ footer =
                             , Html.a [ HtmlAttr.href "https://luispedro.org/"]
                                 [ Html.text "Luis Pedro Coelho" ]
                             , Html.text ". Code is available on "
-                            , Html.a [ HtmlAttr.href "https://github.com/luispedro/ismb-schedule" ]
+                            , Html.a [ HtmlAttr.href "https://github.com/luispedro/isme19-schedule" ]
                                 [ Html.text "GitHub" ]
                             ]
                 ]
 
 
-showAbstract : FilterSet -> Maybe String -> List (Html.Html Msg)
-showAbstract m t = case t of
-    Nothing -> [Html.text ""]
-    Just abstract ->
+
+showAbstract : FilterSet -> String -> String -> List (Html.Html Msg)
+showAbstract m abstract abstractText =
         let
             showFull = m.showFullAbstractsAll || S.member abstract m.expandAbstracts
             maxLen = 150
-            trimmed = String.left maxLen abstract
+            trimmed = String.left maxLen abstractText
         in
         if showFull
-        then [showHits m.abstract abstract]
+        then case HP.run abstract of
+            Err _ -> [Html.text "Error"]
+            Ok x -> HP.toVirtualDom x
         else [showHits m.abstract trimmed
             , Html.span [ HE.onClick (ExpandAbstract abstract) ]
                 [ Html.text " [...]" ]
@@ -497,9 +491,9 @@ createGoogleCalLink : Talk -> String
 createGoogleCalLink talk =
     Url.Builder.crossOrigin
         "https://calendar.google.com" ["calendar", "event"]
-        [ Url.Builder.string "text" (Maybe.withDefault "" talk.speaker ++ ": " ++ talk.title)
+        [ Url.Builder.string "text" ("ISME19: " ++ talk.title)
         , Url.Builder.string "dates" (asCalendarTime talk.day talk.time)
-        , Url.Builder.string "details" (String.left 200 <| Maybe.withDefault "" talk.abstract)
+        , Url.Builder.string "details" (String.left 200 <| talk.abstractText)
         , Url.Builder.string "location" talk.room
         , Url.Builder.string "action" "TEMPLATE"
         ]
