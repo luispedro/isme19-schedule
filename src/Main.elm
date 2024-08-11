@@ -415,7 +415,7 @@ showAbstract : FilterSet -> String -> String -> List (Html.Html Msg)
 showAbstract m abstract abstractText =
         let
             showFull = m.showFullAbstractsAll || S.member abstract m.expandAbstracts
-            maxLen = 150
+            maxLen = 800
             trimmed = String.left maxLen abstractText
         in
         if showFull
