@@ -52,13 +52,17 @@ def get_session_information():
 def parse_session_info(session_info):
     for s in session_info:
         si = s['session-info']
+        for i in si.find_all('img'):
+            i.extract()
         s['session-info'] = si.find('table').prettify()
         s['session-info-text'] = ' '.join(si.find('table').strings).strip()
     return session_info
 
+
 @TaskGenerator
 def save_session_info(session_info):
     json.dump(session_info, open('src/ISME19_all_sessions.json', 'wt'))
+
 
 session_info = get_session_information()
 parsed_info = parse_session_info(session_info)
