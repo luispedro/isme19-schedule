@@ -1,12 +1,12 @@
-# ISMB 2024 Schedule
+# ISME 19  Schedule
 
-See live version at [https://ismb-schedule.luispedro.org/](https://ismb-schedule.luispedro.org/)
+See live version at [https://isme19-schedule.luispedro.org/](https://ismb-schedule.luispedro.org/)
 
-This is a simple schedule for the ISMB 2024 conference. It is a static site
+This is a simple schedule for the ISME19 conference. It is a static site
 
 ## Code
 
-- `convert-to-json.py`: Convert the schedule from the Excel file provided online to JSON (will download the file if needed)
+- `get-schedule.py`: Crawls the ISME19 website to get the schedule and save as JSON
 - `src/Main.elm`: Elm code for the schedule
 
 
