@@ -76,7 +76,7 @@ getSimpleTime t =
 
     in
         { day = Time.toDay Time.utc t
-        , hour = hourUTC - 4 -- - 4 is to adjust to Quebec time
+        , hour = hourUTC + 2 -- + 2 is to adjust to Cape Town time
         , min = minUTC
         , year = Time.toYear Time.utc t
         , month = Time.toMonth Time.utc t |> monthToInt
@@ -110,7 +110,7 @@ initFilters talks =
     , showFullAbstractsAll = False
     , expandAbstracts = S.empty
     , sortOrder = ByTime
-    , now = { day = 11, hour = 12, min = 0, year = 2024, month = 7}
+    , now = { day = 11, hour = 12, min = 0, year = 2024, month = 8}
     , showPastTalks = not conferenceActive
     , talks = talks
     }
@@ -205,7 +205,7 @@ hasPassed t now =
     in
         if now.year > 2024
         then True
-        else if now.month < 7
+        else if now.month < 8
         then False
         else if talkDay t.day < now.day
         then True
@@ -226,8 +226,8 @@ adjustDays m =
 
 
 talkDay : String -> Int
-talkDay t = case String.split " " t of
-    [n, _] -> String.left 2 n |> String.toInt |> Maybe.withDefault 0
+talkDay t = case String.split "-" t of
+    [d, _, _] -> String.toInt d |> Maybe.withDefault 0
     _ -> 0
 
 
@@ -456,18 +456,18 @@ asCalendarTime day time =
     let
         dayn = talkDay day
         startEnd =
-            String.split "-" time
+            String.split " - " time
             |> List.map (String.split ":")
         adjustTimezone : String -> String
         adjustTimezone =
-            -- + 4 is to adjust for Quebec time
-            String.toInt >> Maybe.withDefault 0 >> (\t -> t + 4) >> String.fromInt >> (\t -> if String.length t == 1 then "0" ++ t else t)
+            -- - 2 is to adjust for Cape time
+            String.toInt >> Maybe.withDefault 0 >> (\t -> t - 2) >> String.fromInt >> (\t -> if String.length t == 1 then "0" ++ t else t)
     in
     case startEnd of
         [[hourStart, minuteStart], [hourEnd, minuteEnd]] ->
             String.concat
                 [ "2024"
-                , "07"
+                , "08"
                 , String.fromInt dayn
                 , "T"
                 , adjustTimezone hourStart
@@ -476,7 +476,7 @@ asCalendarTime day time =
                 , "Z"
                 , "/"
                 , "2024"
-                , "07"
+                , "08"
                 , String.fromInt dayn
                 , "T"
                 , adjustTimezone hourEnd
