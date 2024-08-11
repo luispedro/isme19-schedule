@@ -333,7 +333,7 @@ viewModel model = case model of
                                                     ]
                                                     [ Html.text s ]
                                                 )
-                        in [Html.h4 [] [Html.text "Filter by session" ]
+                        in [Html.h4 [] [Html.text "Filter by session type" ]
                             , Dropdown.dropdown
                                 m.sessionFilterState
                                 { options = [ Dropdown.alignMenuRight ]
@@ -353,7 +353,7 @@ viewModel model = case model of
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.title, HE.onInput UpdateTitleFilter ] []
                         ]
                     , Grid.col [ ]
-                        [Html.h4 [] [Html.text "Filter by abstract" ]
+                        [Html.h4 [] [Html.text "Filter by session details" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.abstract, HE.onInput UpdateAbstractFilter ] []
                         ]
                     ]
@@ -365,7 +365,7 @@ viewModel model = case model of
                     [ (if m.showFullAbstractsAll then Button.primary else Button.outlineSecondary)
                     , Button.onClick ToggleShowFullAbstract
                     ]
-                    [ Html.text (if m.showFullAbstractsAll then "Trim abstracts" else "Expand abstracts") ]
+                    [ Html.text (if m.showFullAbstractsAll then "Trim details" else "Expand details") ]
                 , Table.table
                     { options = [ Table.striped, Table.hover, Table.responsive ]
                     , thead =  Table.simpleThead
@@ -374,7 +374,7 @@ viewModel model = case model of
                         --, Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder ByAuthor) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Speaker" ] ]
                         , Table.th [] [ Html.text "Title" ]
                         , Table.th [ Table.cellAttr <| HE.onClick (SetSortOrder BySession) ] [ Html.a [HtmlAttr.href "#" ] [ Html.text "Session" ] ]
-                        , Table.th [] [ Html.text "Abstract" ]
+                        , Table.th [] [ Html.text "Session details" ]
                         ]
                     , tbody =
                         sel
