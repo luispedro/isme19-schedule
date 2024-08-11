@@ -360,7 +360,7 @@ viewModel model = case model of
 
             , Grid.simpleRow
                     [ Grid.col [ ]
-                [ Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " talks") ]
+                [ Html.p [] [ Html.text ("Showing " ++ String.fromInt (List.length sel) ++ " sessions") ]
                 , Button.button
                     [ (if m.showFullAbstractsAll then Button.primary else Button.outlineSecondary)
                     , Button.onClick ToggleShowFullAbstract
