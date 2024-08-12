@@ -300,8 +300,12 @@ viewModel model = case model of
         in Grid.containerFluid [HtmlAttr.id "main"]
             [ Grid.simpleRow
                 [ Grid.col []
-                    [ Html.h1 [] [ Html.text "ISME19" ]
+                    [ Html.h1 [] [ Html.text "ISME19 Posters" ]
                     , Html.p [] [ Html.text "This is a list of all posters at ISME19."]
+                    ,Button.linkButton
+                        [ Button.attrs [ HtmlAttr.href "index.html" ]
+                        , Button.outlinePrimary
+                        ] [ Html.text "Oral presentations" ]
                     ]
                 ]
             , Grid.simpleRow
