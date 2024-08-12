@@ -57,12 +57,14 @@ def parse_session_info(session_info):
         si = s['session-info']
         for i in si.find_all('img'):
             i.decompose()
-        tab = si.find('table')
-        # The first elements are title & location (which we already have)
-        tab.find_all('tr')[1].decompose()
-        tab.find_all('tr')[1].decompose()
+        tabs = si.find_all('table')
+        tab = tabs[2]
+        # The first element is type of session, which we already have
+        tab.find_all('tr')[0].decompose()
         s['session-info'] = tab.prettify()
         s['session-info-text'] = ' '.join(tab.strings).strip()
+        if not s['session-info-text']:
+            s['session-info-text'] = 'No details available'
     return session_info
 
 
