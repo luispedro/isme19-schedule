@@ -357,7 +357,7 @@ viewModel model = case model of
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.title, HE.onInput UpdateTitleFilter ] []
                         ]
                     , Grid.col [ ]
-                        [Html.h4 [] [Html.text "Filter by session details" ]
+                        [Html.h4 [] [Html.text "Filter by session details (incl. presenters)" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.abstract, HE.onInput UpdateAbstractFilter ] []
                         ]
                     ]
