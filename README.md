@@ -1,6 +1,6 @@
 # ISME 19  Schedule
 
-See live version at [https://isme19-schedule.luispedro.org/](https://ismb-schedule.luispedro.org/)
+See live version at [https://isme19-schedule.luispedro.org/](https://isme19-schedule.luispedro.org/)
 
 This is a simple schedule for the ISME19 conference. It is a static site
 
