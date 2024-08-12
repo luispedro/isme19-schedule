@@ -305,7 +305,7 @@ viewModel model = case model of
                     ,Button.linkButton
                         [ Button.attrs [ HtmlAttr.href "index.html" ]
                         , Button.outlinePrimary
-                        ] [ Html.text "Oral presentations" ]
+                        ] [ Html.text "Go to list of oral presentations" ]
                     ]
                 ]
             , Grid.simpleRow
@@ -338,7 +338,7 @@ viewModel model = case model of
                         in [Html.h4 [] [Html.text "Filter by session" ]
                             , Dropdown.dropdown
                                 m.sessionFilterState
-                                { options = [ Dropdown.alignMenuRight ]
+                                { options = [ Dropdown.dropRight ]
                                 , toggleMsg = SessionFilterChanged
                                 , toggleButton =
                                     Dropdown.toggle [ ] [ Html.text "Select session title" ]
