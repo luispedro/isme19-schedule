@@ -148,7 +148,6 @@ type Msg =
     | ExpandAbstract String
     | SetSortOrder SortOrder
     | UpdateTitleFilter String
-    | UpdateAbstractFilter String
 
 update msg model =
     let nmodel = case msg of
@@ -183,7 +182,6 @@ update msg model =
                     ExpandAbstract a -> ShowTalks { m | expandAbstracts = S.insert a m.expandAbstracts }
                     SetSortOrder o -> ShowTalks { m | sortOrder = o }
                     UpdateTitleFilter t -> ShowTalks { m | title = t }
-                    UpdateAbstractFilter t ->  ShowTalks { m | abstract = t }
         cmd = case msg of
             GotData (Ok _) -> Task.perform CurTime Time.now
             _ -> Cmd.none
@@ -273,16 +271,16 @@ viewModel model = case model of
     ShowTalks m ->
         let
             filterDays = List.filter (\t -> S.member t.day m.days)
-            filterTitles = List.filter (\t -> String.contains (String.toLower m.title) (String.toLower t.title))
-            filterAuthors = List.filter (\t -> String.contains (String.toLower m.abstract) (String.toLower t.author))
+            filterTitleAuthors = List.filter (\t ->
+                                    String.contains (String.toLower m.title) (String.toLower t.title) ||
+                                    String.contains (String.toLower m.title) (String.toLower t.author))
             filterSessions = List.filter (\t -> m.session == "" || m.session == t.session)
             filterPastTalks = List.filter (\t -> m.showPastTalks || not (hasPassed t m.now))
             sel = m.talks
                     |> filterDays
                     |> filterSessions
-                    |> filterTitles
+                    |> filterTitleAuthors
                     |> filterPastTalks
-                    |> filterAuthors
                     |> (case m.sortOrder of
                         ByTime -> List.sortBy (\t -> (t.day, parseTime t.time, t.session))
                         ByAuthor -> List.sortBy (\t -> (t.day, parseTime t.time))
@@ -351,12 +349,8 @@ viewModel model = case model of
                                 else Html.p [] [ ]
                             ])
                     , Grid.col [ ]
-                        [Html.h4 [] [Html.text "Filter by title" ]
+                        [Html.h4 [] [Html.text "Filter by title/author" ]
                         ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.title, HE.onInput UpdateTitleFilter ] []
-                        ]
-                    , Grid.col [ ]
-                        [Html.h4 [] [Html.text "Filter by author" ]
-                        ,Html.input [ HtmlAttr.type_ "text", HtmlAttr.value m.abstract, HE.onInput UpdateAbstractFilter ] []
                         ]
                     ]
 
