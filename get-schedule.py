@@ -46,7 +46,7 @@ def get_session_information():
             'time': str(time),
             'session-info': p
             })
-        sleep(.2 + 2*random())
+        sleep(2 + 2*random())
         print(f'Got session {title} (total of {len(Sessions)} sessions)')
     return Sessions
 
@@ -101,7 +101,7 @@ def get_poster_session_information():
             'time': str(time),
             'session-info': np
             })
-        sleep(.2 + 2*random())
+        sleep(2 + 2*random())
         print(f'Got poster session {title} (total of {len(poster_sessions)} sessions)')
     return poster_sessions
 
