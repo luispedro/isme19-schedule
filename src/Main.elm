@@ -201,7 +201,7 @@ add30mins (h, m) =
 hasPassed : Talk -> SimpleTime -> Bool
 hasPassed t now =
     let
-        (startH30, startM30) = add30mins <| parseTime t.time
+        (startH30, startM30) = add30mins <| endTime t.time
     in
         if now.year > 2024
         then True
@@ -247,6 +247,31 @@ view m =
     ]}
 
 
+endTime : String -> (Int, Int)
+endTime t =
+    let
+        second : List a -> Maybe a
+        second l = case l of
+            _::x::_ -> Just x
+            _ -> Nothing
+        parts = t
+                |> String.split "-"
+                |> List.map String.trim
+                |> second
+                |> Maybe.withDefault ""
+                |> String.split ":"
+                |> List.map String.trim
+    in
+        ( parts
+            |> List.head
+            |> Maybe.andThen String.toInt
+            |> Maybe.withDefault 0
+        , parts
+            |> List.tail
+            |> Maybe.andThen List.head
+            |> Maybe.andThen String.toInt
+            |> Maybe.withDefault 0
+        )
 parseTime : String -> (Int, Int)
 parseTime t =
     let
