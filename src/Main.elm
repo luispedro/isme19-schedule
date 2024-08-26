@@ -96,7 +96,7 @@ type alias FilterSet =
     , talks : List Talk
     }
 
-conferenceActive = True
+conferenceActive = False
 
 initFilters : List Talk -> FilterSet
 initFilters talks =
